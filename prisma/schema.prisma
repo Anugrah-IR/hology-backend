@@ -1,0 +1,207 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------- ACADEMY ----------------
+
+model academy_registration {
+  registration_id Int                 @id @default(autoincrement()) @db.UnsignedSmallInt
+  user_id         Int                 @unique @db.UnsignedSmallInt
+  academy_id      Int                 @db.UnsignedSmallInt
+  linkedin        String?             @unique @db.VarChar(200)
+  cv              String?             @unique @db.VarChar(45)
+  ktm             String?             @unique @db.VarChar(45)
+  soal1           String?             @db.Text
+  soal2           String?             @db.Text
+  soal3           String?             @db.Text
+  soal4           String?             @db.Text
+  soal5           String?             @db.Text
+  soal6           String?             @db.Text
+  soal7           String?             @db.Text
+  status          registration_status @default(PENDING)
+  created_at      DateTime            @default(now()) @db.DateTime
+  updated_at      DateTime            @default(now()) @db.DateTime
+
+  user    users   @relation(fields: [user_id], references: [user_id], onUpdate: Restrict, map: "academy_registration_ibfk_1")
+  academy academy @relation(fields: [academy_id], references: [academy_id], onUpdate: Restrict, map: "academy_registration_ibfk_2")
+}
+
+enum registration_status {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model academy {
+  academy_id              Int                    @id @default(autoincrement()) @db.UnsignedSmallInt
+  academy_name            String                 @unique @db.VarChar(45)
+  academy_description     String                 @db.Text
+  registration_time_limit DateTime               @db.DateTime
+  admin_id                Int                    @default(1) @db.UnsignedSmallInt
+  instructor              admins                 @relation(fields: [admin_id], references: [admin_id], onUpdate: Restrict, map: "academy_ibfk_1")
+  academy_registration    academy_registration[]
+  academy_activity        academy_activity[]
+  created_at              DateTime               @default(now()) @db.DateTime
+  updated_at              DateTime               @default(now()) @db.DateTime
+}
+
+model academy_activity {
+  academy_activity_id Int      @id @default(autoincrement()) @db.UnsignedSmallInt
+  academy_id          Int      @db.UnsignedSmallInt
+  description         String
+  holding_date        DateTime @db.DateTime
+  token_presensi      String?  @unique @db.VarChar(45)
+  presensi_time_limit DateTime @db.DateTime
+  created_at          DateTime @default(now()) @db.DateTime
+  updated_at          DateTime @default(now()) @db.DateTime
+
+  academy          academy            @relation(fields: [academy_id], references: [academy_id], onUpdate: Restrict, map: "academy_activity_ibfk_1")
+  presensi_academy presensi_academy[]
+}
+
+model presensi_academy {
+  presensi_id         Int      @id @default(autoincrement()) @db.UnsignedSmallInt
+  academy_activity_id Int      @db.UnsignedSmallInt
+  user_id             Int      @db.UnsignedSmallInt
+  created_at          DateTime @default(now()) @db.DateTime
+  updated_at          DateTime @default(now()) @db.DateTime
+
+  academy_activity academy_activity @relation(fields: [academy_activity_id], references: [academy_activity_id], onUpdate: Restrict, map: "presensi_academy_ibfk_1")
+  user             users            @relation(fields: [user_id], references: [user_id], onUpdate: Restrict, map: "presensi_academy_ibfk_2")
+}
+
+// -------------- ADMIN ----------------
+
+model admins {
+  admin_id       Int             @id @default(autoincrement()) @db.UnsignedSmallInt
+  admin_uuid     String          @unique @default(dbgenerated("UUID()")) @db.Char(36)
+  admin_email    String          @unique @db.VarChar(60)
+  admin_name     String          @db.VarChar(45)
+  admin_password String          @db.Text
+  admin_role     role_for_admins
+  created_at     DateTime        @default(now()) @db.DateTime(0)
+  updated_at     DateTime        @default(now()) @db.DateTime(0)
+  academy        academy[]
+}
+
+enum role_for_admins {
+  SEKBEN
+  INTI
+  GOD
+  EXHIBITOR
+  INSTRUCTOR
+}
+
+// -------------- USERS ----------------
+model users {
+  user_id               Int                   @id @default(autoincrement()) @db.UnsignedSmallInt
+  user_uuid             String                @unique @default(dbgenerated("UUID()")) @db.Char(36)
+  user_fullname         String                @db.VarChar(60)
+  user_email            String                @unique(map: "user_email") @db.VarChar(60)
+  user_birthdate        DateTime              @db.Date
+  user_gender           String                @db.Char(1)
+  user_password         String                @db.Text
+  institution_id        Int                   @db.UnsignedSmallInt
+  forgot_password_token String                @default("no_token") @db.VarChar(20)
+  created_at            DateTime              @default(now()) @db.DateTime(0)
+  updated_at            DateTime              @default(now()) @db.DateTime(0)
+  institutions          institutions          @relation(fields: [institution_id], references: [institution_id], onUpdate: Restrict, map: "users_institution_id_foreign")
+  seminar               user_seminars?
+  academy_registration  academy_registration?
+  leader_of_team        teams?                @relation("teams_team_leadTousers")
+  presensi_academy      presensi_academy[]
+  member_of_teams       detail_teams[]
+
+  @@index([institution_id], map: "users_institution_id_foreign")
+}
+
+// -------------- INSTITUTIONS ----------------
+model institutions {
+  institution_id   Int     @id @unique @default(autoincrement()) @db.UnsignedSmallInt
+  institution_name String  @unique @db.VarChar(255)
+  users            users[]
+  teams            teams[]
+}
+
+// -------------- SEMINAR ----------------
+model user_seminars {
+  user_id     Int      @id @unique @db.UnsignedSmallInt
+  ticket_uuid String   @unique @default(dbgenerated("UUID()")) @db.Char(36)
+  created_at  DateTime @default(now()) @db.DateTime(0)
+  updated_at  DateTime @default(now()) @db.DateTime(0)
+  present     Boolean  @default(false)
+  ig_story    String   @db.VarChar(200)
+  user        users    @relation(fields: [user_id], references: [user_id], onUpdate: Restrict, map: "seminar_attendance_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+// -------------- COMPETITIONS | TEAMS ----------------
+
+model teams {
+  team_id            Int            @id @default(autoincrement()) @db.UnsignedSmallInt
+  institution_id     Int            @db.UnsignedSmallInt
+  competition_id     Int            @db.UnsignedSmallInt
+  team_name          String         @unique(map: "team_name") @db.VarChar(45)
+  team_payment_proof String?        @db.VarChar(45)
+  team_biodata       String?        @db.VarChar(45)
+  team_lead_id       Int            @unique @db.UnsignedSmallInt
+  team_status        team_statuses  @default(WAITING)
+  join_token         String         @unique @default(dbgenerated("UUID()")) @db.Char(36)
+  competitions       competitions   @relation(fields: [competition_id], references: [competition_id], onUpdate: Restrict, map: "teams_competition_id_foreign")
+  institutions       institutions   @relation(fields: [institution_id], references: [institution_id], onUpdate: Restrict, map: "teams_institution_id_foreign")
+  detail_teams       detail_teams[]
+  submission         submission[]
+  team_leader        users          @relation("teams_team_leadTousers", fields: [team_lead_id], references: [user_id], onUpdate: Restrict, map: "teams_team_lead_foreign")
+
+  @@index([competition_id], map: "teams_competition_id_foreign")
+  @@index([institution_id], map: "teams_institution_id_foreign")
+  @@index([team_lead_id], map: "teams_team_lead_foreign")
+}
+
+enum team_statuses {
+  WAITING
+  ACCEPTED
+  REJECTED
+}
+
+model detail_teams {
+  detail_team_id Int   @id @default(autoincrement()) @db.UnsignedSmallInt
+  users          users @relation(fields: [user_id], references: [user_id], onUpdate: Restrict, map: "detail_teams_user_id_foreign")
+  user_id        Int   @db.UnsignedSmallInt
+  teams          teams @relation(fields: [team_id], references: [team_id], onUpdate: Restrict, map: "detail_teams_team_id_foreign")
+  team_id        Int   @db.UnsignedSmallInt
+
+  @@unique([user_id, team_id])
+  @@index([team_id], map: "detail_teams_team_id_foreign")
+  @@index([user_id], map: "detail_teams_user_id_foreign")
+}
+
+// -------------- COMPETITIONS ----------------
+
+model competitions {
+  competition_id          Int     @id @default(autoincrement()) @db.UnsignedSmallInt
+  competition_name        String  @unique @db.VarChar(45)
+  competition_description String  @db.Text
+  competition_percentage  Int     @db.UnsignedSmallInt
+  teams                   teams[]
+}
+
+model submission {
+  submission_id    Int     @id @default(autoincrement()) @db.UnsignedSmallInt
+  team_id          Int     @db.UnsignedSmallInt
+  // submission_link  String  @db.VarChar(255)
+  submission_file  String? @db.VarChar(100)
+  submission_phase Int     @default(0) @db.SmallInt
+  teams            teams   @relation(fields: [team_id], references: [team_id], onUpdate: Restrict, map: "submission_team_id_foreign")
+
+  @@index([team_id], map: "submission_team_id_foreign")
+}
